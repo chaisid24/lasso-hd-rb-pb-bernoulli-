@@ -1,4 +1,4 @@
-JASA Reproducibility Materials Template
+Instructions to reproduce simulation results in Plots 1 and 2
 ================
 
 This GitHub repository contains a suggested template structure for authors who
