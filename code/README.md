@@ -1,13 +1,15 @@
-# Generating the main data sets which were used in the simulation study
+# Generating the data sets which were used in the simulation study
 
 To generate data as per simulation plan described in Section 8 of main article, run
 
 ```sh
 R CMD BATCH code/data-gen-code-all.R
 ```
+The following parameters can be changed: n (sample size), p (number of variables), p_0 (number of relevant variables), $\rho$ (correlation parameter for correlation among design matrix columns, see Section 8 for details). In our simulations we have fixed $\rho = 0.6$. Two choices of (n,p) were used: (n,p) = (150,500) and (n,p) = (300, 500). We have fixed p_0 = 10, for both choices of (n,p). The first p_0 coefficients of beta.0.true were fixed equal to 5, that is, beta_{1,0} = ... = beta_{10,0} = 5, and beta_{j,0} = 0, for all $j>$10$.
 
-You may need to change the parameters: $n$, $p$, $p_0$, beta.0.true, $\rho$. We have two choices of $(n,p)$: (n,p) = (150,500) and (n,p) = (300, 500). In our code we have used $\rho = 0.6$ (see Section 8 of main article)
 
+
+The data-gen-code-all.R file generates M = 500 data sets. 
 This will produce a fixed $X$ matrix, and M = 400 Monte-Carlo replications of $y$ ($n$ dimensional response vector), for each choice of error distribution. We used two types of error distibution.
 
 error.distribution.1 = $N(0,1)$, 
