@@ -1,7 +1,7 @@
 # description of the code
 # this code deals with the homogenous errors case
 # computes empirical coverages (EC) and average lengths (ALen) of confidence intervals (CIs) for a target parameter
-# the target parameter is a true regression coefficient beta_{j,0}, for j = 1,...,p_0 (= 10)
+# the target parameter is a true regression coefficient beta_{j,0}, for j = 1,...,p_0 ( = 10)
 # in our simulations we focused on two different targets: beta.0[1] and beta.0[10]
 # the EC and ALen are found at various choices of lambda = k*lambda_{CV}
 # where k > 0, is a constant factor that is changed and
