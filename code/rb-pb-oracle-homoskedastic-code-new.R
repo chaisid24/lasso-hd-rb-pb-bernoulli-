@@ -2,7 +2,7 @@
 # this code deals with the homogenous errors case
 # computes empirical coverages (EC) and average lengths (ALen) of confidence intervals (CIs) for a target parameter
 # the target parameter is a true regression coefficient beta_{j,0}, for j = 1,...,p_0 (= 10)
-# in our simulations we focused on two different targets: beta_{1,0} and beta_{10,0}
+# in our simulations we focused on two different targets: beta.0[1] and beta.0[10]
 # the EC and ALen are found at various choices of lambda = k*lambda_{CV}
 # where k > 0, is a constant factor that is changed and
 # lambda_{CV} is found by 5 fold CV
@@ -68,7 +68,7 @@ rb.mid.step.vareq = function(b, y.star.mat, X, beta.star.mat, lam, d.vec, beta.p
     	p = ncol(X)
     	T.star = sqrt(n)*sum(d.vec*(beta.star - beta.plols)) 	# this finds sqrt(n)*(beta.star[coef.index] - beta.plols[coef.index])
     
-    	beta.dot.star = rep(0, p)					# initial definition
+    	beta.dot.star = rep(0, p)				# initial definition
 
 	# constructing relevant quantities for computing the RB based pivotal quantity
 	A.star = (1:p)[beta.star!=0]
@@ -79,14 +79,15 @@ rb.mid.step.vareq = function(b, y.star.mat, X, beta.star.mat, lam, d.vec, beta.p
     
 	beta.dot.star[A.star] = beta.star[A.star] + lam*as.vector(solve(C11.star)%*%matrix(c.star, ncol = 1))
     	sigma.star = sqrt(mean((y.star - X%*%beta.dot.star)^2))
-    	R.check.star = (T.star - b0.star)/sqrt(sigma.star)					# bias corrected and studentized RB based pivot
+    	R.check.star = (T.star - b0.star)/sqrt(sigma.star)	# bias corrected and studentized RB based pivot
     	return(R.check.star)
 }
 
 # main RB related code for computing relavent CIs and if they contain the true parameter or not and the CI lengths
-# nz.index is a select set of values from 1:R, where R = length of k.fac vector 
+# nz.index is a select set of values from 1:R, where R = length of k.fac vector (see details below)
 # beta.0 is the true regression coefficient
-# init.info.list contains objects needed to run this code 
+# init.info.list contains objects needed to run this code
+# this code provides RB related output for a single Monte-Carlo iteration
 rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info.list)
 {
     	n = nrow(X)
@@ -99,9 +100,10 @@ rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
 	beta.hat = init.info.list[[1]][ ,nz.index]	# a specific column of Lasso estimates for a specific lambda   	
 	lam = init.info.list[[2]][nz.index]       	# that specific lambda value 
 	theta.hat = init.info.list[[3]][nz.index] 	# target parameter estimate extracted from beta.hat; in our simulation it is simply beta.hat[coef.index] 
-	theta.0 = init.info.list[[4]]			# true target parameter; in our simulation it is beta.0.true[coef.index]
+	theta.0 = init.info.list[[4]]			# true target parameter; in our simulation it is beta.0[coef.index]
     	rboot.imat = init.info.list[[5]]             	# nxB matrix of sampled indices
-    
+
+	# RB related preiliminary computations 
     	A.hat = (1:p)[beta.hat!=0]
 	d.hat = d.vec[A.hat]
 	C11.hat = t(X[ ,A.hat])%*%(X[ ,A.hat])/n
@@ -133,38 +135,41 @@ rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
     	logic.2s = ifelse(two.symm.rbci.ep[1] <= theta.0 & theta.0 <= two.symm.rbci.ep[2], 1, 0)
     	len.2 = abs(two.rbci.ep[1] - two.rbci.ep[2])
     	len.2s = abs(two.symm.rbci.ep[1] - two.symm.rbci.ep[2])
-    
+
+	# RB related output for one Monte-Carlo dataset 
     	rb.ci.out.nz.index = c(logic.L, logic.U, logic.2, logic.2s, len.2, len.2s)  # vector of length 6
     	return(rb.ci.out.nz.index)
 }
 
+# intermediate steps for PB based CI computation
 pb.mid.step = function(b, beta.ss.mat, X, y, lam, d.vec, beta.plols, sigma.check, Sigma.tilde)
 {
-    n = nrow(X)
-    p = ncol(X)
+    	n = nrow(X)
+    	p = ncol(X)
     
-    beta.ss = beta.ss.mat[ ,b]
-    A.ss = (1:p)[beta.ss!=0]
-    d.ss = d.vec[A.ss]
+    	beta.ss = beta.ss.mat[ ,b]
+    	A.ss = (1:p)[beta.ss!=0]
+    	d.ss = d.vec[A.ss]
     
-    C11.ss = t(X[ , A.ss])%*%(X[ , A.ss])/n
-    s.vec.ss = sign(beta.ss[A.ss])
-    term.2 = as.vector(lam*solve(C11.ss)%*%s.vec.ss)
-    b0.ss = -sqrt(n)*lam*as.vector(matrix(d.ss, nrow = 1)%*%solve(C11.ss)%*%matrix(s.vec.ss, ncol = 1))
+    	C11.ss = t(X[ , A.ss])%*%(X[ , A.ss])/n
+    	s.vec.ss = sign(beta.ss[A.ss])
+    	term.2 = as.vector(lam*solve(C11.ss)%*%s.vec.ss)
+    	b0.ss = -sqrt(n)*lam*as.vector(matrix(d.ss, nrow = 1)%*%solve(C11.ss)%*%matrix(s.vec.ss, ncol = 1))
     
-    beta.dot.ss = rep(0, p)
-    beta.dot.ss[A.ss] = beta.ss[A.ss] + term.2
-    sigma.ss.sqr = mean((y - X%*%beta.dot.ss)^2)
+    	beta.dot.ss = rep(0, p)
+    	beta.dot.ss[A.ss] = beta.ss[A.ss] + term.2
+    	sigma.ss.sqr = mean((y - X%*%beta.dot.ss)^2)
     
-    T.ss = sqrt(n)*sum(d.vec*(beta.ss - beta.plols))
-    Rt.ss = (1/sqrt(sigma.ss.sqr))*sigma.check*(Sigma.tilde^(-1/2))*(T.ss - b0.ss) 
-    return(Rt.ss)
+	T.ss = sqrt(n)*sum(d.vec*(beta.ss - beta.plols))
+    	Rt.ss = (1/sqrt(sigma.ss.sqr))*sigma.check*(Sigma.tilde^(-1/2))*(T.ss - b0.ss) 
+	return(Rt.ss)
 }
 
+# this code plays a similar roles as the rbci.vareq.fn(.) code, expect for the case of PB
+# see rbci.vareq.fn(.) and the explanations/comments within that code
 pbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info.list)
 {
-    #cat(nz.index,"\n")
-	n = nrow(X)
+    	n = nrow(X)
 	p = ncol(X)
 	d.vec = numeric(p)
 	d.vec[coef.index] = 1 
@@ -173,9 +178,9 @@ pbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
 	lam = init.info.list[[2]][nz.index]
 	theta.hat = init.info.list[[3]][nz.index]
 	theta.0 = init.info.list[[4]]
-    pboot.imat = init.info.list[[6]]             # nxB matrix 
+    	pboot.imat = init.info.list[[6]]             # nxB matrix of indices 
    
-    A.hat = (1:p)[beta.hat!=0]
+        A.hat = (1:p)[beta.hat!=0]
 	d.hat = d.vec[A.hat]
 	C11.hat = t(X[ ,A.hat])%*%(X[ ,A.hat])/n
 	s.vec = sign(beta.hat[A.hat])
@@ -192,63 +197,71 @@ pbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
 
 	# PB part #
 	z.mat = as.vector(X%*%beta.plols) + sapply(1:B, function(b, u, r){r*u[ ,b]}, u = pboot.imat, r = res.check)  # nxB matrix
-    beta.ss.mat = sapply(1:B, lasso.within.boot, z.mat, X, lam) # pxB matrix #
-    Rt.ss.vec = sapply(1:B, pb.mid.step, beta.ss.mat, X, y, lam, d.vec, beta.plols, sqrt(sigma.check.sqr), Sigma.tilde) # B-vec
-    quant.Rt.ss = quantile(Rt.ss.vec, probs = c(alpha, 1-alpha, alpha/2, 1-alpha/2))
+        beta.ss.mat = sapply(1:B, lasso.within.boot, z.mat, X, lam) # pxB matrix #
+        Rt.ss.vec = sapply(1:B, pb.mid.step, beta.ss.mat, X, y, lam, d.vec, beta.plols, sqrt(sigma.check.sqr), Sigma.tilde) # B-vec
+        quant.Rt.ss = quantile(Rt.ss.vec, probs = c(alpha, 1-alpha, alpha/2, 1-alpha/2))
     
-    # Symmetric PB calculations #
-    z.alpha = qnorm(1 - alpha/2)
-    w2 = -mean((xi0.vec^2)*(res.check^4))/(sigma.check.sqr*Sigma.tilde) + mean(res.check^4)/(sigma.check.sqr^2)
-    w4 = 2*mean((xi0.vec^4)*(res.check^4))/(Sigma.tilde^2) + (4/(sigma.check.sqr*Sigma.tilde))*mean((xi0.vec^2)*(res.check^4)) 
-        - (3/(sigma.check.sqr^2))*mean(res.check^4) + 1
-    Cn.p = -(z.alpha/n)*(w2/2 + w4*(z.alpha^2 - 3)/(24))
-    h.dag = quantile(abs(Rt.ss.vec), probs = 1-alpha)
-    h.check = h.dag + Cn.p
+        # Symmetric PB calculations #
+    	z.alpha = qnorm(1 - alpha/2)
+    	w2 = -mean((xi0.vec^2)*(res.check^4))/(sigma.check.sqr*Sigma.tilde) + mean(res.check^4)/(sigma.check.sqr^2)
+    	w4 = 2*mean((xi0.vec^4)*(res.check^4))/(Sigma.tilde^2) + (4/(sigma.check.sqr*Sigma.tilde))*mean((xi0.vec^2)*(res.check^4)) - (3/(sigma.check.sqr^2))*mean(res.check^4) + 1
+    	Cn.p = -(z.alpha/n)*(w2/2 + w4*(z.alpha^2 - 3)/(24))
+    	h.dag = quantile(abs(Rt.ss.vec), probs = 1-alpha)
+    	h.check = h.dag + Cn.p
     
-    # CI construction #
-    ci.ep.low = theta.hat - b0/sqrt(n) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[2]
-    ci.ep.upp = theta.hat - b0/sqrt(n) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[1]
-    logic.L = ifelse(ci.ep.low <= theta.0, 1, 0)
-    logic.U = ifelse(theta.0 <= ci.ep.upp, 1, 0)
+    	# CI construction 
+	ci.ep.low = theta.hat - b0/sqrt(n) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[2]
+    	ci.ep.upp = theta.hat - b0/sqrt(n) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[1]
+    	logic.L = ifelse(ci.ep.low <= theta.0, 1, 0)
+    	logic.U = ifelse(theta.0 <= ci.ep.upp, 1, 0)
     
-    ci.ep.2 = rep(theta.hat - b0/sqrt(n), 2) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[c(4,3)]
-    logic.2 = ifelse(ci.ep.2[1] <= theta.0 & theta.0 <= ci.ep.2[2], 1, 0) 
-    len.2 = abs(ci.ep.2[2] - ci.ep.2[1])
+    	ci.ep.2 = rep(theta.hat - b0/sqrt(n), 2) - sqrt(sigma.check.sqr*Sigma.hat/n)*quant.Rt.ss[c(4,3)]
+    	logic.2 = ifelse(ci.ep.2[1] <= theta.0 & theta.0 <= ci.ep.2[2], 1, 0) 
+    	len.2 = abs(ci.ep.2[2] - ci.ep.2[1])
     
-    ci.ep.2s = rep(theta.hat - b0/sqrt(n), 2) + c(-1,1)*sqrt(sigma.check.sqr*Sigma.hat/n)*h.check
-    logic.2s = ifelse(ci.ep.2s[1] <= theta.0 & theta.0 <= ci.ep.2s[2], 1, 0) 
-    len.2s = abs(ci.ep.2s[2] -ci.ep.2s[1])
+    	ci.ep.2s = rep(theta.hat - b0/sqrt(n), 2) + c(-1,1)*sqrt(sigma.check.sqr*Sigma.hat/n)*h.check
+    	logic.2s = ifelse(ci.ep.2s[1] <= theta.0 & theta.0 <= ci.ep.2s[2], 1, 0) 
+    	len.2s = abs(ci.ep.2s[2] -ci.ep.2s[1])
 
-    pb.ci.out.nz.index = c(logic.L, logic.U, logic.2, logic.2s, len.2, len.2s)  # vector of length 6
-    return(pb.ci.out.nz.index)
+    	pb.ci.out.nz.index = c(logic.L, logic.U, logic.2, logic.2s, len.2, len.2s)  # vector of length 6
+    	return(pb.ci.out.nz.index)
 }
+
+# this code finds Debiased Lasso based CIs for a given (y,X) utiliing the A$Z information stored earlier in the data generation phase
 dblasso.ci = function(y, X, coef.index, alpha, A.Z)
 {
-    A = lasso.proj(X, y, Z = A.Z, suppress.grouptesting = TRUE)
-    u1 = confint(A, level = 1-alpha)
-    return(as.vector(u1[coef.index, ]))
+    	A = lasso.proj(X, y, Z = A.Z, suppress.grouptesting = TRUE)
+    	u1 = confint(A, level = 1-alpha)
+    	return(as.vector(u1[coef.index, ]))
 }
 
+# code that handles a single Monte-Carlo iteration (m-th iteration)
 data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.Z)
 {
-	y = y.mat[ ,m]
-	n = nrow(X)
+	y = y.mat[ ,m]			# m-th Monte Carlo response vector
+	n = nrow(X)			
 	p = ncol(X)
-	R = length(k.fac)
-	p0 = length(beta.0[beta.0!=0])
+	R = length(k.fac)		# length of k.fac vector
+	p0 = length(beta.0[beta.0!=0])	# no. of non-zero components in beta.0.true vector (here p_0 = 10)
 	
 	d.vec = numeric(p)
 	d.vec[coef.index] <- 1
 
-	C = lasso.fn(y, X, list(CV.k, k.fac))  
-	beta.mat = C[[1]] # pxR matrix 
-    lam = C[[2]] # R vector of lambda values #
-	theta.vec = as.vector(d.vec%*%beta.mat) # R-vector
-	inz.theta = (1:R)[theta.vec!=0] # indices with non zero theta.vec
+	C = lasso.fn(y, X, list(CV.k, k.fac))  		# finds a pxR matrix of Lasso estimates as well as the lambda = k.fac*lambda_{CV} vector of length R
+	beta.mat = C[[1]] 		       		# a pxR matrix of Lasso estimates
+    	lam = C[[2]] 			       		# R vector of lambda = k.fac*lambda_{CV} values 
+	theta.vec = as.vector(d.vec%*%beta.mat) 	# R-vector of target estimates; in our case these are simply beta.mat[coef.index, ] values
+
+	# those index (=r) values, for which theta.vec[r] is non-zero 
+	# as we are targeting inference for underlying non-zero coefficients, 
+	# the simulation is able to proceed only if a Lasso estimate turns out to be non-zero
+	# essentially inz.theta identifies those lambda values which give non-zero Lasso estimates of the target theta.0 = beta.0[coef.index]
+	inz.theta = (1:R)[theta.vec!=0] 		
 	theta.0 = sum(d.vec*beta.0) # true parameter 
 	
-	
-	if(length(inz.theta)>0)
+	# simulation proceeds if among all R choices of lambda = k.fac*lambda_{CV} there is at least one r, which gave theta.hat[r] non-zero
+	# infact we drop all lambda[r] values for which theta.vec[r] = 0
+	if(length(inz.theta)>0) 
 	{
 		print(c(m, 1))
 		#print(cbind(inz.theta, theta.vec[inz.theta]))
