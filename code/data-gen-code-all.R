@@ -136,7 +136,8 @@ yx.gen = function(n, beta.0.true, p0, rho, M)
 	save(yx.list, file = my.file.name)
 }
 
-beta.0.true = c(rep(5,10), rep(0,490)) # supply the true regression coefficient
+# the true regression coefficient
+beta.0.true = c(rep(5,10), rep(0,490)) 
 
 # uncomment as per requirement 
 # yx.gen(n = 150, beta.0.true, p0 = 10, rho = 0.6, M = 500) 
