@@ -1,5 +1,6 @@
 rm(list = ls())
 # plotting code for heteroskedastic case with PB
+
 plot.code <- function(n, p, coef.index)
 {
     file.name.1 = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et2.Rdata", sep = "")
@@ -57,4 +58,8 @@ plot.code <- function(n, p, coef.index)
    
      dev.off()
 }
-plot.code(n = 300, p = 500, coef.index = 10)
+
+# change the n, p, coef.index and err.type values as per requirement
+# the output (.Rdata) files need to be in the same directory
+
+# plot.code(n = 300, p = 500, coef.index = 10)
