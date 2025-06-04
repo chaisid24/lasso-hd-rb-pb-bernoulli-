@@ -1,5 +1,1 @@
-Please replace the contents of this file with relevant instructions for your repository or remove this file entirely.
-
-This directory would generally contain results of simulations or real data analyses. Also, intermediate output files might be placed here, cached to avoid having to rerun computationally-intensive steps of the workflow. 
-
-
+This directory contains two folders output/output-heteroskedastic-case and output/output-homoskedastic-case, containing the processes R output after running the relevant R codes and also the outputs received by using the plotting codes. These files are uploaded for displaying our results in details.
