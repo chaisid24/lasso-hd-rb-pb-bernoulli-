@@ -14,7 +14,7 @@ The pb-oracle-heteroskedastic-code-new.R file contains code for PB based, Oracle
 
 At present we do not advise running this code for the (n = 150, p = 500) case, as the higher error levels in the heteroskedastic case, and the relatively small true signal strength can create problems in some Monte Carlo iterations. The code works perfectly for the (n = 300, p = 500) case.
 
-The plot-code-new-homoskedastic-rb-pb-oracle-case.R file is code for generating the plots shown in Figures 1, 2 (in the main article), and Figures 1 and 2 in the supplementary materials. The output (.Rdata file) generated from rb-pb-oracle-homoskedastic-code-new.R needs to be kept in the same directory. 3 and 4
+The plot-code-new-homoskedastic-rb-pb-oracle-case.R file is code for generating the plots shown in Figures 1, 2 (in the main article), and Figures 1 and 2 in the supplementary materials. The output (.Rdata file) generated from rb-pb-oracle-homoskedastic-code-new.R needs to be kept in the same directory.
 
 The plot-code-new-heteroskedastic-pb-case.R is code for plotting Figures 3 and 4 in the supplementary materials file. The output from pb-oracle-heteroskedastic-code-new.R needs to be stored in the same directory.
 
