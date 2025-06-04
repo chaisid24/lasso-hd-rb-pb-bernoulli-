@@ -12,6 +12,6 @@ The code folder contains all relevant R code. The code files have been commented
 
 The data folder contains the data sets used in the simulation study presented in the article. They include the Monte-Carlo data sets for homoskedastic errors case (both error types), and heteroskedastic errors case (both error types). 
 
-The output folder contains some .Rdata files which are outputs generated from the code files and .pdf files (showing plots). They are split into two folders: output/output-homoskedastic-case and output/output-heteroskedastic-case, each for two types of errors.
+The output folder contains some .Rdata files which are outputs generated from the code files and .pdf files (showing plots). They are split into two folders: output/output-homoskedastic-case and output/output-heteroskedastic-case, each for two types of errors. The files in the output folder are not meant for use by any interested user, and instead they are provided only for showing how we obtained our output.
 
 Each folder contains detailed description of the files within them.
