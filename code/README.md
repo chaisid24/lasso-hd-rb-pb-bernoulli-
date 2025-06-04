@@ -5,11 +5,40 @@ To generate data as per simulation plan described in Section 8 of main article, 
 ```sh
 R CMD BATCH code/data-gen-code-all.R
 ```
-The following parameters can be changed: n (sample size), p (number of variables), p_0 (number of relevant variables), $\rho$ (correlation parameter for correlation among design matrix columns, see Section 8 for details). In our simulations we have fixed $\rho = 0.6$. Two choices of (n,p) were used: (n,p) = (150,500) and (n,p) = (300, 500). We have fixed p_0 = 10, for both choices of (n,p). The first p_0 coefficients of beta.0.true were fixed equal to 5, that is, beta_{1,0} = ... = beta_{10,0} = 5, and beta_{j,0} = 0, for all $j>$10$.
+The following parameters can be changed: n (sample size), p (number of variables), p_0 (number of relevant variables), $\rho$ (correlation parameter for correlation among design matrix columns, see Section 8 for details). In our simulations we have fixed $\rho = 0.6$. Two choices of (n,p) were used: (n,p) = (150,500) and (n,p) = (300, 500). We have fixed p_0 = 10, for both choices of (n,p). The first p_0 coefficients of beta.0.true were fixed equal to 5, that is, beta_{1,0} = ... = beta_{10,0} = 5, and beta_{j,0} = 0, for all $j>10$.
 
 
+The data-gen-code-all.R file generates M = 500 data sets. Both homoskedastic and heteroskedastic data sets are generated at the same time. The design matrix X is generated initially with centered and scaled columns and it remains same for all Monte-Carlo data sets. For both homoskedastic and heteroskedastic cases, both error distributions $F = F_1$ and $F = F_2$ are used, where $F_1 = N(0,1)$ and $F_2$ is the scaled and centered $\chi^2_1$ distribution. 
 
-The data-gen-code-all.R file generates M = 500 data sets. 
+The output is stored in a file called 
+
+yx-all-n-p-true-beta-5.Rdata
+
+where n and p are replaced by the values used. This .Rdata file contains a list object called yx.list. This list has the following elements,
+
+yx.list[[1]] <- y.array # a (2 x n x M) array of y data for homogenous case
+
+yx.list[[1]][1, , m] would be y values corresponding to F = F_1 and for the m-th Monte Carlo replication
+yx.list[[1]][2, , m] would be y values corresponding to F = F_2 and for the m-th Monte Carlo replication
+	
+	yx.list[[2]] <- X.fix # X matrix
+	yx.list[[3]] <- beta.0.true # 
+	
+	# irrepresentible condition value is stored #
+	yx.list[[4]] <- c(min(a), max(a)) 
+	
+	
+	# finding Z - see hdi manual # used for debiased Lasso stage #
+	# this does not require use of y values
+	# each column of X is predicted by Lasso using other columns of X 
+	# the resulting output is saved, for future use in Monte Carlo simulation stage
+	A = lasso.proj(X.fix, y.array[1, ,1], parallel = TRUE, ncores = 12, return.Z = TRUE, suppress.grouptesting = TRUE)
+	yx.list[[5]] = A$Z
+	
+	yx.list[[6]] = y.array.het # heterogenous errors y data
+	
+
+
 This will produce a fixed $X$ matrix, and M = 400 Monte-Carlo replications of $y$ ($n$ dimensional response vector), for each choice of error distribution. We used two types of error distibution.
 
 error.distribution.1 = $N(0,1)$, 
