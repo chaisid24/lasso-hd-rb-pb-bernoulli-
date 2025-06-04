@@ -1,157 +1,20 @@
-# Generating the data sets which were used in the simulation study
+# Different code files which were used in the simulation study
 
-To generate data as per simulation plan described in Section 8 of main article, run
+The data-gen-code-all.R file generates all Monte-Carlo data sets, for both choices of error distribution and for both homoskedastic and heteroskedastic errors. Detailed description has been provided in the data-gen-code-all.R file to explain the functioning of the code. The following two output files (main data sets used for our Monte-Carlo iterations),
 
-```sh
-R CMD BATCH code/data-gen-code-all.R
-```
-The following parameters can be changed: n (sample size), p (number of variables), p_0 (number of relevant variables), $\rho$ (correlation parameter for correlation among design matrix columns, see Section 8 for details). In our simulations we have fixed $\rho = 0.6$. Two choices of (n,p) were used: (n,p) = (150,500) and (n,p) = (300, 500). We have fixed p_0 = 10, for both choices of (n,p). The first p_0 coefficients of beta.0.true were fixed equal to 5, that is, beta_{1,0} = ... = beta_{10,0} = 5, and beta_{j,0} = 0, for all $j>10$.
+yx-all-n-150-p-500-true-beta-5.Rdata, and 
 
+yx-all-n-300-p-500-true-beta-5.Rdata
 
-The data-gen-code-all.R file generates M = 500 data sets. Both homoskedastic and heteroskedastic data sets are generated at the same time. The design matrix X is generated initially with centered and scaled columns and it remains same for all Monte-Carlo data sets. For both homoskedastic and heteroskedastic cases, both error distributions $F = F_1$ and $F = F_2$ are used, where $F_1 = N(0,1)$ and $F_2$ is the scaled and centered $\chi^2_1$ distribution. 
+obtained by running this code have been stored in the data directory in this github repository.
 
-The output is stored in a file called 
+The rb-pb-oracle-homoskedastic-code-new.R file computes RB based, PB based, Oracle based and Debiased Lasso based CIs for target (true non-zero regression) parameters. As the name suggests, this code is only valid for the homoskedastic errors case. This file contains very detailed comments which explains how the code functions. These comments also help to comprehend the other code file for the heteroskedastic case.
 
-yx-all-n-p-true-beta-5.Rdata
+The pb-oracle-heteroskedastic-code-new.R file contains code for PB based, Oracle based and Debiased Lasso based CIs in the heteroskedastic errors case for target (true non-zero regression) parameters. The main difference from the homoskedastic case is the change in construction of PB based pivotal statistics. Otherwise, it is similar to the rb-pb-oracle-homoskedastic-code-new.R code file for the homoskedastic case. The explanations/comments provided in rb-pb-oracle-homoskedastic-code-new.R are helpful in understanding this code. 
 
-where n and p are replaced by the values used. This .Rdata file contains a list object called yx.list. This list has the following elements,
+At present we do not advise running this code for the (n = 150, p = 500) case, as the higher error levels in the heteroskedastic case, and the relatively small true signal strength can create problems in some Monte Carlo iterations. The code works perfectly for the (n = 300, p = 500) case.
 
-yx.list[[1]] <- y.array # a (2 x n x M) array of y data for homogenous case
+The plot-code-new-homoskedastic-rb-pb-oracle-case.R file is code for generating the plots shown in Figures 1, 2 (in the main article), and Figures 1 and 2 in the supplementary materials. The output (.Rdata file) generated from rb-pb-oracle-homoskedastic-code-new.R needs to be kept in the same directory. 3 and 4
 
-yx.list[[1]][1, , m] would be y values corresponding to F = F_1 and for the m-th Monte Carlo replication
-yx.list[[1]][2, , m] would be y values corresponding to F = F_2 and for the m-th Monte Carlo replication
-	
-	yx.list[[2]] <- X.fix # X matrix
-	yx.list[[3]] <- beta.0.true # 
-	
-	# irrepresentible condition value is stored #
-	yx.list[[4]] <- c(min(a), max(a)) 
-	
-	
-	# finding Z - see hdi manual # used for debiased Lasso stage #
-	# this does not require use of y values
-	# each column of X is predicted by Lasso using other columns of X 
-	# the resulting output is saved, for future use in Monte Carlo simulation stage
-	A = lasso.proj(X.fix, y.array[1, ,1], parallel = TRUE, ncores = 12, return.Z = TRUE, suppress.grouptesting = TRUE)
-	yx.list[[5]] = A$Z
-	
-	yx.list[[6]] = y.array.het # heterogenous errors y data
-	
+The plot-code-new-heteroskedastic-pb-case.R is code for plotting Figures 3 and 4 in the supplementary materials file. The output from pb-oracle-heteroskedastic-code-new.R needs to be stored in the same directory.
 
-
-This will produce a fixed $X$ matrix, and M = 400 Monte-Carlo replications of $y$ ($n$ dimensional response vector), for each choice of error distribution. We used two types of error distibution.
-
-error.distribution.1 = $N(0,1)$, 
-
-error.distribution.2 = centered and scaled $\chi^2_1$ distribution.
-
-Both Monte-Carlo data sets (for each choice of error distribution) are saved in a file yx-all-n-p.Rdata
-
-In order to obtain empirical coverages and average lengths of ALASSO based confidence intervals using the above simulated data, run
-
-```sh
-R CMD BATCH code/alasso-simulation-code.R
-```
-You will need to modify the last line by providing the appropriate choice of n,p, CV.k (no. of folds in cross-validation), coef.index (the index of the non-zero target coefficient), alpha (1-level of confidence interval), B (no. of bootstrap iterations), err.type (1 or 2, depending on which error distribution is to be used).
-
-For example,
-
-```{r}
-> alasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B = 700, err.type = 2)
-
-```
-uses $n = 300$, $p = 500$, 5 fold CV, targets the 10th coefficient in beta.0.true (which is actually non-zero), $\alpha = 0.1$ (corresponds to 90% two sided confidence intervals), uses 700 bootstrap iterations within each Monte-Carlo replication and uses the data set generated by using error.distribution.2
-
-Similarly to obtain empirical coverages and average lengths of Post-Lasso OLS based confidence intervals using the above simulated data, run
-
-```sh
-R CMD BATCH code/post-lasso-ols-simulation-code.R
-```
-
-For example, 
-```{r}
-> postlasso.ols.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B = 700, err.type = 2)
-```
-has a similar interpretation. The output would look like
-
-```{r}
-> source("post-lasso-ols.R")
-
-emp.cov =  0.907 0.877 0.805 
-av.len = 4.87 4.47 3.86 
-int.count =  399 
-err.type =  1 
-coef.index =  1 
-n= 300  p= 500
-```
-The above values represent empirical coverages for Symmetric Residual Bootstrap (RB) (0.907), Symmetric Perturbation Bootstrap (PB) (0.877) and Oracle Based (0.805) two sided 90% nominal confidence intervals (from left to right) for $\boldsymbol{\beta}_{0,1}$. 
-
-The third output line int.count represents how many times $\boldsymbol{\beta}_{0,1}$ was estimated as a zero-coefficient, in the 400 simulations. 
-
-The code takes roughly 20 minutes to run with parallel processing on 7 cores on my desktop. My desktop has 48gb RAM and uses Intel® Xeon(R) CPU E5-1620 v3 @ 3.50GHz × 8 processor.
-
-For convenience of readers, two output files out-n-300-p-500-coef-beta-1-errtype-2.Rdata and out-plols-n-300-p-500-coef-beta-10-errtype-1.Rdata, containing output of simulation results have been included in the output directory.
-
-# Instructions to reproduce real-data analysis results in Tables 3 and 4
-
-The data, available from a microarray experiment was collected from Hall and Miller (Journal of Computational and Graphical Statistics, Vol. 18(3), p. 533-550, 2009). The data consisted of observations from $n = 30$
-specimens on the Ro1 expression level ($y$), and genetic expression levels $x = (x_1, . . . , x_p)$ for 6319 genes. The absolute value of the correlation between $y$ and each covariate $x_i$ was used as an initial screening tool and only those covariates with absolute correlation value ≥ 0.6 were selected for further study. This resulted in a smaller set of p = 147 covariates. The response vector $y$ and the design matrix columns were centered and scaled before fitting the high-dimensional linear model.
-
-The main data is stored in Ro131.csv and contains genetic expression level data, relating to cardiomyopathy microarray (comma separated values file). This data file is available in the data directory. The data is also available from https://www.tandfonline.com/action/downloadSupplement?doi=10.1198\%2Fjcgs.2009.08041&file=ucgs_a_10711990_sm0001.zip.
-
-In order to run the real data analysis, run
-```{r}
-> source("combined-real-data-analysis.R")
-```
-Initial pre-modifications are done in this code: see the first few lines of the function good.set(...)
-
-Columns of $X$ and the $y$ vector are standardized before model fitting.
-
-From the original dataset Ro131.csv, some variables are selected based on the rho.thresh cutoff. We used rho.thresh = 0.6, which results $p=147$ variables.
-
-Using a common choice of $\lambda$ a reliable set of 8 active variables is identified. The corresponding confidence intervals and parameter estimates are obtained for these active variables. The results are stored in the file real-data-output.Rdata.
-
-```{r}
-> load("real-data-output.Rdata")
-> ls()
-[1] "A.main"
-> # this is the output for ALASSO based confidence intervals for the selected 8 variables
-> # last column shows alasso based parameter estimates for underlying regression coefficients
-> # first column shows the index for the selected variable, with p = 147
-> A.main[[1]]
-     Var (j)    RB-L      RB-U    PB-L    PB-U    Or-L    Or-U       Est.
-[1,]      50  0.0872  0.870000 -0.0313  0.9890  0.0344  0.1790  0.1065179
-[2,]      77 -1.2800  0.877000 -1.1100  0.7060  0.2200  0.3990  0.3094339
-[3,]      97 -0.6470  0.000979 -0.5680 -0.0783 -0.1720 -0.0360 -0.1039716
-[4,]     121 -0.5620 -0.004110 -0.6390  0.0729 -0.2200 -0.0763 -0.1480112
-[5,]     123 -0.6650  0.049100 -0.6480  0.0320 -0.1790 -0.0485 -0.1138653
-[6,]     137 -0.3640  0.619000 -0.3700  0.6260  0.2060  0.3420  0.2740301
-[7,]     140 -0.5990  0.076800 -0.6310  0.1090 -0.2130 -0.0680 -0.1403483
-[8,]     147 -0.3230  0.489000 -0.3260  0.4920 -0.0388  0.1330  0.0468724
-
-> # similar output for Post-Lasso OLS based case
-> A.main[[2]]
-     Var (j)   RB-L  RB-U    PB-L     PB-U     Or-L    Or-U        Est.
-[1,]      50 -0.197 0.483  0.0456  0.24100  0.09060  0.1960  0.14325897
-[2,]      77 -0.458 0.666 -0.0400  0.24900  0.03890  0.1700  0.10423697
-[3,]      97 -0.432 0.255 -0.1720 -0.00497 -0.13800 -0.0388 -0.08843978
-[4,]     121 -0.554 0.315 -0.2230 -0.01540 -0.17200 -0.0670 -0.11935824
-[5,]     123 -0.402 0.230 -0.1860  0.01430 -0.13400 -0.0382 -0.08590596
-[6,]     137 -0.358 0.761  0.0269  0.37500  0.15200  0.2510  0.20118666
-[7,]     140 -0.439 0.155 -0.2120 -0.07200 -0.19500 -0.0894 -0.14216024
-[8,]     147 -0.293 0.433 -0.0255  0.16500  0.00736  0.1320  0.06989561
-
-> # the choice of lambda where estimates and confidence intervals were obtained
-> A.main[[3]]
-[1] 0.02890696
-
-> # the variable names for the selected 8 variables for the ALASSO case
-> A.main[[6]]
-[1] "G2582" "G3758" "G4425" "G5580" "G5611" "G6007" "G6031" "G6356"
-
-> # the variable names for the selected 8 variables for the Post-Lasso OLS case
-> A.main[[7]]
-[1] "G2582" "G3758" "G4425" "G5580" "G5611" "G6007" "G6031" "G6356"
-
-```
-The file real-data-output.Rdata has been included in the output directory.
