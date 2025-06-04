@@ -142,3 +142,6 @@ beta.0.true = c(rep(5,10), rep(0,490))
 # uncomment as per requirement 
 # yx.gen(n = 150, beta.0.true, p0 = 10, rho = 0.6, M = 500) 
 # yx.gen(n = 300, beta.0.true, p0 = 10, rho = 0.6, M = 500) 
+
+# the .Rdata files created by running this code are currently placed in the data folder in this github repository
+# these files are needed to be placed in the same directory where the main code files are kept 
