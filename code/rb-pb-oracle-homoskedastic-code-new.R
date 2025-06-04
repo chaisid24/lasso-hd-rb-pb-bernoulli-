@@ -8,7 +8,7 @@
 # lambda_{CV} is found by 5 fold CV
 # the EC and ALen are found/plotted over changing values of k
 
-# the code is run by using
+# the code is run by using (see at the bottom of this code)
 # lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
 # where, n = sample size, p = number of variables, CV.k = 5 (for 5 fold CV)
 # coef.index = 1 (or 10), depending on whether we target beta_{1,0} (or beta_{10,0}) (this can be changed)
@@ -84,7 +84,7 @@ rb.mid.step.vareq = function(b, y.star.mat, X, beta.star.mat, lam, d.vec, beta.p
 }
 
 # main RB related code for computing relavent CIs and if they contain the true parameter or not and the CI lengths
-# nz.index can take any value from 1:R, where R = length of k.fac vector (see below for further details)
+# nz.index is a select set of values from 1:R, where R = length of k.fac vector 
 # beta.0 is the true regression coefficient
 # init.info.list contains objects needed to run this code 
 rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info.list)
@@ -94,16 +94,15 @@ rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
 	d.vec = numeric(p)
 	d.vec[coef.index] = 1 
 
-	# beta.mat was originally a p x R matrix, where R is described above  
+	# init.info.list[[1]] was originally a p x R matrix, where R is described above  
 	# containing p-dimensional Lasso estimates for all R choice of lambda = k.fac*lambda_{CV}
-	# each data set had its 
-	beta.hat = init.info.list[[1]][ ,nz.index]   
-	lam = init.info.list[[2]][nz.index]          # that element of lambda.vec 
-	theta.hat = init.info.list[[3]][nz.index]    # that element of theta.vec
-	theta.0 = init.info.list[[4]]
-    rboot.imat = init.info.list[[5]]             # nxB matrix of sampled indices
+	beta.hat = init.info.list[[1]][ ,nz.index]	# a specific column of Lasso estimates for a specific lambda   	
+	lam = init.info.list[[2]][nz.index]       	# that specific lambda value 
+	theta.hat = init.info.list[[3]][nz.index] 	# target parameter estimate extracted from beta.hat; in our simulation it is simply beta.hat[coef.index] 
+	theta.0 = init.info.list[[4]]			# true target parameter; in our simulation it is beta.0.true[coef.index]
+    	rboot.imat = init.info.list[[5]]             	# nxB matrix of sampled indices
     
-    A.hat = (1:p)[beta.hat!=0]
+    	A.hat = (1:p)[beta.hat!=0]
 	d.hat = d.vec[A.hat]
 	C11.hat = t(X[ ,A.hat])%*%(X[ ,A.hat])/n
 	beta.plols = rep(0, p)
@@ -120,23 +119,23 @@ rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
 	beta.star.mat = sapply(1:B, lasso.within.boot, y.boot.rb, X, lam) # pxB mat # 
 	R.check.star = sapply(1:B, rb.mid.step.vareq, y.boot.rb, X, beta.star.mat, lam, d.vec, beta.plols) # B vector #
 	
-    quant.R.check.star = quantile(R.check.star, probs = c(alpha/2, alpha, 1-alpha, 1 - alpha/2))
-    quant.R.check.abs.star = quantile(abs(R.check.star), probs = 1-alpha)
+    	quant.R.check.star = quantile(R.check.star, probs = c(alpha/2, alpha, 1-alpha, 1 - alpha/2))
+    	quant.R.check.abs.star = quantile(abs(R.check.star), probs = 1-alpha)
 
-    lower.rbci.ep = theta.hat - (b0 + sqrt(sigma.check.sqr)*quant.R.check.star[3])/sqrt(n)
-    upper.rbci.ep = theta.hat - (b0 + sqrt(sigma.check.sqr)*quant.R.check.star[2])/sqrt(n)
-    two.rbci.ep = rep(theta.hat - b0/sqrt(n), 2) - quant.R.check.star[c(4, 1)]*sqrt(sigma.check.sqr)/sqrt(n)
-    two.symm.rbci.ep = rep(theta.hat - b0/sqrt(n), 2) + c(-1, 1)*quant.R.check.abs.star*sqrt(sigma.check.sqr)/sqrt(n)
+    	lower.rbci.ep = theta.hat - (b0 + sqrt(sigma.check.sqr)*quant.R.check.star[3])/sqrt(n)
+    	upper.rbci.ep = theta.hat - (b0 + sqrt(sigma.check.sqr)*quant.R.check.star[2])/sqrt(n)
+    	two.rbci.ep = rep(theta.hat - b0/sqrt(n), 2) - quant.R.check.star[c(4, 1)]*sqrt(sigma.check.sqr)/sqrt(n)
+    	two.symm.rbci.ep = rep(theta.hat - b0/sqrt(n), 2) + c(-1, 1)*quant.R.check.abs.star*sqrt(sigma.check.sqr)/sqrt(n)
 
-    logic.L = ifelse(lower.rbci.ep <= theta.0, 1, 0)
-    logic.U = ifelse(theta.0 <= upper.rbci.ep, 1, 0)
-    logic.2 = ifelse(two.rbci.ep[1] <= theta.0 & theta.0 <= two.rbci.ep[2], 1, 0)
-    logic.2s = ifelse(two.symm.rbci.ep[1] <= theta.0 & theta.0 <= two.symm.rbci.ep[2], 1, 0)
-    len.2 = abs(two.rbci.ep[1] - two.rbci.ep[2])
-    len.2s = abs(two.symm.rbci.ep[1] - two.symm.rbci.ep[2])
+    	logic.L = ifelse(lower.rbci.ep <= theta.0, 1, 0)
+    	logic.U = ifelse(theta.0 <= upper.rbci.ep, 1, 0)
+    	logic.2 = ifelse(two.rbci.ep[1] <= theta.0 & theta.0 <= two.rbci.ep[2], 1, 0)
+    	logic.2s = ifelse(two.symm.rbci.ep[1] <= theta.0 & theta.0 <= two.symm.rbci.ep[2], 1, 0)
+    	len.2 = abs(two.rbci.ep[1] - two.rbci.ep[2])
+    	len.2s = abs(two.symm.rbci.ep[1] - two.symm.rbci.ep[2])
     
-    rb.ci.out.nz.index = c(logic.L, logic.U, logic.2, logic.2s, len.2, len.2s)  # vector of length 6
-    return(rb.ci.out.nz.index)
+    	rb.ci.out.nz.index = c(logic.L, logic.U, logic.2, logic.2s, len.2, len.2s)  # vector of length 6
+    	return(rb.ci.out.nz.index)
 }
 
 pb.mid.step = function(b, beta.ss.mat, X, y, lam, d.vec, beta.plols, sigma.check, Sigma.tilde)
