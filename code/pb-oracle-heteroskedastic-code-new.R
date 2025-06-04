@@ -259,3 +259,4 @@ k0.seq= seq(4, 0.375, by= -0.125)
 # lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
 # lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
 
+# for n = 150, there can be difficulties in running this code because of the higher noise level. 
