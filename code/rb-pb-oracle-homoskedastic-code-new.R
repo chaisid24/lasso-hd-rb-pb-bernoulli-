@@ -48,14 +48,13 @@ lasso.fn = function(y, X.scale, CV.list) # use this code when cv.lam.search is r
 	return(out.all)
 }
 
-# computes Lasso solutions using glmnet, but at a fixed choices of lambda values
-# used in the bootstrap stage where lambda is provided
+# computes Lasso solutions using glmnet, but at a fixed choices of lambda values, used in the bootstrap stage where lambda is provided
 lasso.within.boot <- function(b, y.boot.mat, X, lam.fix)
 {
-    y.star = y.boot.mat[ ,b]
-    A = glmnet(X, y.star, intercept = F, standardize = F, lambda = lam.fix)
-	beta.star = as.vector(A$beta)
-	return(beta.star)
+	y.star = y.boot.mat[ ,b] 							# b-th bootstrapped response vector (either RB or PB)
+    	A = glmnet(X, y.star, intercept = F, standardize = F, lambda = lam.fix)		# lam.fix is a scalar
+	beta.star = as.vector(A$beta)							# a p-vector, bootstrapped Lasso estimate
+	return(beta.star)				
 }
 
 rb.mid.step.vareq = function(b, y.star.mat, X, beta.star.mat, lam, d.vec, beta.plols)
