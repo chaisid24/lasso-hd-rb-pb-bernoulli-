@@ -24,10 +24,8 @@ library(glmnet)
 library(hdi)
 
 
-
 # this code computes lasso estimates using glmnet package
 # also computes lambda_{CV} for each Monte Carlo data-set
-
 lasso.fn = function(y, X.scale, CV.list) # use this code when cv.lam.search is required 
 {
 	# y is a n-vector, a single response vector for the m-th Monte Carlo replication
@@ -48,7 +46,7 @@ lasso.fn = function(y, X.scale, CV.list) # use this code when cv.lam.search is r
 	return(out.all)
 }
 
-# computes Lasso solutions using glmnet, but at a fixed choices of lambda values, used in the bootstrap stage where lambda is provided
+# computes Lasso solutions using glmnet, but at a fixed choice of lambda, used in the bootstrap stage where lambda is provided
 lasso.within.boot <- function(b, y.boot.mat, X, lam.fix)
 {
 	y.star = y.boot.mat[ ,b] 							# b-th bootstrapped response vector (either RB or PB)
@@ -57,39 +55,49 @@ lasso.within.boot <- function(b, y.boot.mat, X, lam.fix)
 	return(beta.star)				
 }
 
+# intermediate step in RB based CI computation
+# works on the b-th bootstrapped data set
+# d.vec is a p-vector with all components = 0, but d.vec[coef.index] <- 1
+# beta.plols is the post Lasso ordinary least squares (OLS) estimate
 rb.mid.step.vareq = function(b, y.star.mat, X, beta.star.mat, lam, d.vec, beta.plols)
 {
-    y.star = y.star.mat[ ,b]
-    beta.star = beta.star.mat[ ,b]
+    	y.star = y.star.mat[ ,b]
+    	beta.star = beta.star.mat[ ,b]
         
-    n = nrow(X)
-    p = ncol(X)
-    T.star = sqrt(n)*sum(d.vec*(beta.star - beta.plols))
+	n = nrow(X)
+    	p = ncol(X)
+    	T.star = sqrt(n)*sum(d.vec*(beta.star - beta.plols)) 	# this finds sqrt(n)*(beta.star[coef.index] - beta.plols[coef.index])
     
-    beta.dot.star = rep(0, p)
+    	beta.dot.star = rep(0, p)					# initial definition
+
+	# constructing relevant quantities for computing the RB based pivotal quantity
+	A.star = (1:p)[beta.star!=0]
+	C11.star = t(X[ ,A.star])%*%(X[ ,A.star])/n
+    	c.star = sign(beta.star[A.star])
+    	term.1 = as.vector(matrix(d.vec[A.star], nrow = 1)%*%solve(C11.star)%*%matrix(c.star, ncol = 1))
+    	b0.star = -sqrt(n)*lam*term.1
     
-    A.star = (1:p)[beta.star!=0]
-    C11.star = t(X[ ,A.star])%*%(X[ ,A.star])/n
-    c.star = sign(beta.star[A.star])
-    term.1 = as.vector(matrix(d.vec[A.star], nrow = 1)%*%solve(C11.star)%*%matrix(c.star, ncol = 1))
-    b0.star = -sqrt(n)*lam*term.1
-    
-    beta.dot.star[A.star] = beta.star[A.star] + lam*as.vector(solve(C11.star)%*%matrix(c.star, ncol = 1))
-    sigma.star = sqrt(mean((y.star - X%*%beta.dot.star)^2))
-    R.check.star = (T.star - b0.star)/sqrt(sigma.star)
-    return(R.check.star)
+	beta.dot.star[A.star] = beta.star[A.star] + lam*as.vector(solve(C11.star)%*%matrix(c.star, ncol = 1))
+    	sigma.star = sqrt(mean((y.star - X%*%beta.dot.star)^2))
+    	R.check.star = (T.star - b0.star)/sqrt(sigma.star)					# bias corrected and studentized RB based pivot
+    	return(R.check.star)
 }
 
+# main RB related code for computing relavent CIs and if they contain the true parameter or not and the CI lengths
+# nz.index can take any value from 1:R, where R = length of k.fac vector (see below for further details)
+# beta.0 is the true regression coefficient
+# init.info.list contains objects needed to run this code 
 rbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info.list)
 {
-    #cat(nz.index,"\n")
-	n = nrow(X)
+    	n = nrow(X)
 	p = ncol(X)
-	
 	d.vec = numeric(p)
 	d.vec[coef.index] = 1 
 
-	beta.hat = init.info.list[[1]][ ,nz.index]   # that column of beta.mat
+	# beta.mat was originally a p x R matrix, where R is described above  
+	# containing p-dimensional Lasso estimates for all R choice of lambda = k.fac*lambda_{CV}
+	# each data set had its 
+	beta.hat = init.info.list[[1]][ ,nz.index]   
 	lam = init.info.list[[2]][nz.index]          # that element of lambda.vec 
 	theta.hat = init.info.list[[3]][nz.index]    # that element of theta.vec
 	theta.0 = init.info.list[[4]]
