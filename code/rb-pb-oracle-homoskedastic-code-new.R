@@ -254,33 +254,33 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
 
 	# those index (=r) values, for which theta.vec[r] is non-zero 
 	# as we are targeting inference for underlying non-zero coefficients, 
-	# the simulation is able to proceed only if a Lasso estimate turns out to be non-zero
+	# the simulation is able to proceed only if a Lasso estimate for a target parameter turns out to be non-zero
 	# essentially inz.theta identifies those lambda values which give non-zero Lasso estimates of the target theta.0 = beta.0[coef.index]
 	inz.theta = (1:R)[theta.vec!=0] 		
 	theta.0 = sum(d.vec*beta.0) # true parameter 
-	
-	# simulation proceeds if among all R choices of lambda = k.fac*lambda_{CV} there is at least one r, which gave theta.hat[r] non-zero
-	# infact we drop all lambda[r] values for which theta.vec[r] = 0
-	if(length(inz.theta)>0) 
-	{
-		print(c(m, 1))
-		#print(cbind(inz.theta, theta.vec[inz.theta]))
-		
-	}
-	else
-	{
-		print(c(m, 2))
-	}
-	
-	# the debiased Lasso based CI's are always usable # - Debiased Lasso CI - #
+
+	## Debiased Lasso based CIs ##
+	# The Debiased Lasso based CI's are always usable 
 	dbl.ci = dblasso.ci(y, X, coef.index, alpha, A.Z)
-    dbl.logic = ifelse(dbl.ci[1]<= theta.0 & theta.0 <= dbl.ci[2], 1, 0)
+    	dbl.logic = ifelse(dbl.ci[1]<= theta.0 & theta.0 <= dbl.ci[2], 1, 0)
 	dbl.len = abs(dbl.ci[2] - dbl.ci[1])
 	dlasso.out.m <- c(dbl.logic, dbl.len) 
+	
+
+	## Oracle (Normal), RB and PB based CIs ##
+	# simulation proceeds if among all R choices of lambda = k.fac*lambda_{CV} there is at least one r, which gave theta.hat[r] non-zero
+	# infact we drop all r, for which theta.vec[r] = 0
+	# effectively to find empirical coverages and average lengths at a certain choice of k.fac[r], we divide not by M = 500 (no. of Monte-Carlo replications)
+	# but, by M.hat[r] = number of Monte-Carlo replications at which lambda[r] = k.fac[r]*lambda_{CV} gave a non-zero Lasso estimate of the target parameter
+	# these M.hat[r] values for r = 1,...,R, are available in our final output
+	# for smaller lambda[r] values, M.hat[r] is close to M = 500, but for larger values of lambda[r], the M.hat[r] count decreases
+	# dividing by M.hat[r] makes sense, as it is only in those replications, where we are identifying the target parameter as a non-zero value
 	
 	
 	if(length(inz.theta)>0)
 	{
+		# print(c(m, 1)) # an indication that at least some theta.hat[r] is non-zero
+		
 		# Creating bootstrap indices #
 		rboot.imat = sapply(1:B, function(i, z){sample(z, size = length(z), replace = T)}, z = 1:n)
 		mu.star = (1/2)/(1/2 + 3/2)
@@ -289,8 +289,9 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
     
 		init.info.list = list(beta.mat, lam, theta.vec, theta.0, rboot.imat, pboot.imat)
 	
-		# oracle ci #
-    	oracle.out.m <- matrix(0, nrow = R, ncol = 2)
+		# Oracle CI 
+		# Approximates Lasso by a Normal limit law assuming true non-zero coefficient indices (relevant variables) are known 
+    		oracle.out.m <- matrix(0, nrow = R, ncol = 2) # allow R rows to allow the possibility that all theta.vec[r] are non-zero
 		C11 = t(X[ ,1:p0])%*%(X[ ,1:p0])/n
 		C11.inv = solve(C11)
 		d1.vec = d.vec[1:p0] # p0 dimensional vector #
@@ -305,102 +306,128 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
 		    oracle.out.m[r, 2] = abs(oracle.ci.r[2] - oracle.ci.r[1])	      
 		}
 		
-    	# RB and PB #
-    	RB.out.mat.m <- PB.out.mat.m <- matrix(0, nrow = R, ncol = 6)
-    	RB.out.mat.m[inz.theta, ] = t(sapply(inz.theta, rbci.vareq.fn, y, X, coef.index, B, alpha, beta.0, init.info.list)) # length(inz.theta)x6 matrix
-    	PB.out.mat.m[inz.theta, ] = t(sapply(inz.theta, pbci.vareq.fn, y, X, coef.index, B, alpha, beta.0, init.info.list)) 
-    	
-    	return(list(c(1,m), inz.theta, oracle.out.m, RB.out.mat.m, PB.out.mat.m, dlasso.out.m))
-    }
-    else
-    {
-    	return(list(c(2,m), inz.theta, dlasso.out.m))
-    }
-  
+    		# RB and PB #
+    		RB.out.mat.m <- PB.out.mat.m <- matrix(0, nrow = R, ncol = 6) # each is a Rx6 matrix
+    		RB.out.mat.m[inz.theta, ] = t(sapply(inz.theta, rbci.vareq.fn, y, X, coef.index, B, alpha, beta.0, init.info.list)) # length(inz.theta)x6 matrix
+    		PB.out.mat.m[inz.theta, ] = t(sapply(inz.theta, pbci.vareq.fn, y, X, coef.index, B, alpha, beta.0, init.info.list)) # length(inz.theta)x6 matrix
+
+		# the first element in this list c(1,m) is used denote that at least one theta.vec[r], for r=1,...,R, is non-zero
+		# essentially in the m-th Monte-Carlo iteration, we have atleast one choice of lambda[r], which gave a non-zero estimate of the target parameter
+    		return(list(c(1,m), inz.theta, oracle.out.m, RB.out.mat.m, PB.out.mat.m, dlasso.out.m))
+    	}
+    	else 
+    	{
+		# c(2,m) is used to denote that in the m-th Monte-Carlo iteration, all theta.vec[r] = 0, for r = 1,...,R.
+    		return(list(c(2,m), inz.theta, dlasso.out.m)) # only relevant output is the Debiased Lasso based output
+    	}
+	# processing of m-th Monte Carlo dataset finishes #
 }
+
+
+# processing of all Monte-Carlo datasets
+# we supply the following
+# n = sample size
+# p = number of variables
+# CV.k = number of folds (k) used for k-fold CV based choice of lambda_{CV}, in our case we always used CV.k = 5
+# alpha = 0.1, for 90% nominal coverage 
+# B.boot = number of bootstrap iterations within each Monte-Carlo replication (= 750, for our simulation)
+# err.type = 1 or 2, depending on F = F_1 = N(0,1), or F = F_2 = chi.square(1) errors 
+# k.fac = the R length vector of constants multiplied to lambda_{CV}
 
 lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 {
-		my.file.name = paste("yx-all-n-",n,"-p-",p,"-true-beta-5.Rdata", sep = "")
-		load(my.file.name)
+	my.file.name = paste("yx-all-n-",n,"-p-",p,"-true-beta-5.Rdata", sep = "")
+	load(my.file.name) 	# loads the relavent data set, which has been generated and saved by the data generation code
 		
-		y.mat = yx.list[[1]][err.type, , ] # loads n x M response matrix for homogenous-case 
-		X.fix = yx.list[[2]]
-		beta.0 = yx.list[[3]]
-		A.Z = yx.list[[5]]
-   		M = ncol(y.mat)
-		R = length(k.fac)
+	y.mat = yx.list[[1]][err.type, , ]	# loads n x M response matrix for homogenous-case, depending on err.type (1 or 2) 
+	X.fix = yx.list[[2]]			# design matrix
+	beta.0 = yx.list[[3]]			# true beta.0 parameter
+	A.Z = yx.list[[5]]			# nodewise Lasso used for Debiased Lasso related computations
+	M = ncol(y.mat)				# M = 500 for our simulation
+	R = length(k.fac)			# length of k.fac vector
+
+	# processing all Monte-Carlo datasets in parallel by calling the previous function
+	# mc.cores can be changed
+	# saves all longer/larger/initial output in a file prefixed with "long-n-..."
+	B <- mclapply(1:M, data.set.m, mc.cores = 8, y.mat, X.fix, CV.k, coef.index, B.boot, alpha, beta.0, k.fac, A.Z)
+	save(B, file = paste("long-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
 		
-		B <- mclapply(1:M, data.set.m, mc.cores = 8, y.mat, X.fix, CV.k, coef.index, B.boot, alpha, beta.0, k.fac, A.Z)
-		
-		save(B, file = paste("long-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
-		# evaluating coverage probabilities #
-		
-		prelim.count <- matrix(0, nrow = M, ncol = 2)
-		count.vec <- numeric(R)
-		oracle.out.M <- matrix(0, nrow = R, ncol = 2)
-		RB.out.mat.M <- PB.out.mat.M <- matrix(0, nrow = R, ncol = 6)
-		dlasso.out.M <- rep(0, 2)
-		for(m in 1:M)
+	
+	# evaluating coverage probabilities 
+	prelim.count <- matrix(0, nrow = M, ncol = 2) # an initial storage matrix for c(1,m) or c(2,m)
+
+	# a R length vector, which will count for each r=1,..,R, the no. of Monte-Carlo data-sets where it provided theta.hat[r] not equal to zero
+	count.vec <- numeric(R)	
+	
+	oracle.out.M <- matrix(0, nrow = R, ncol = 2)
+	RB.out.mat.M <- PB.out.mat.M <- matrix(0, nrow = R, ncol = 6)
+	dlasso.out.M <- rep(0, 2)
+
+	# this part is used to count M.hat[r] values (see above)
+	for(m in 1:M)
+	{
+		prelim.count[m, ] <- B[[m]][[1]]	# it is either c(1,m) or c(2,m)
+		if(prelim.count[m, 1] == 1)		# if the first element is 1, then Oracle, RB and PB based CIs have been computed for m-th data-set
 		{
-			prelim.count[m, ] <- B[[m]][[1]]
-			if(prelim.count[m, 1] == 1)
-			{
-				a.m <- B[[m]][[2]]
-				count.vec[a.m] <- count.vec[a.m] + 1
-				oracle.out.M <- oracle.out.M + B[[m]][[3]]
-				RB.out.mat.M <- RB.out.mat.M + B[[m]][[4]]
-				PB.out.mat.M <- PB.out.mat.M + B[[m]][[5]]
-				dlasso.out.M <- dlasso.out.M + B[[m]][[6]]
-			}
-			else
-			{
-				dlasso.out.M <- dlasso.out.M + B[[m]][[3]]
-			}
-		}			
-		for(r in 1:R)
-		{
-			if(count.vec[r]>0)
-			{
-				oracle.out.M[r, ] <- oracle.out.M[r, ]/count.vec[r]
-				RB.out.mat.M[r, ] <- RB.out.mat.M[r, ]/count.vec[r]
-				PB.out.mat.M[r, ] <- PB.out.mat.M[r, ]/count.vec[r]
-			}
-			else
-			{
-				oracle.out.M[r, ] <- RB.out.mat.M[r, ]<- PB.out.mat.M[r, ] <- 0
-			}
+			a.m <- B[[m]][[2]]				# identifying the inz.theta values for the m-th data set
+			count.vec[a.m] <- count.vec[a.m] + 1		# increment those components of count.vec by +1
+			oracle.out.M <- oracle.out.M + B[[m]][[3]]	# keep adding to the oracle.out.M matrix another Rx2 matrix
+			RB.out.mat.M <- RB.out.mat.M + B[[m]][[4]]	# same as above, add a Rx6 matrix
+			PB.out.mat.M <- PB.out.mat.M + B[[m]][[5]]	# ...
+			dlasso.out.M <- dlasso.out.M + B[[m]][[6]]	# keep adding a 2-length vector
 		}
-		dlasso.out.M <- matrix(dlasso.out.M/M, nrow = 1, ncol = 2)
+		else
+		{
+			dlasso.out.M <- dlasso.out.M + B[[m]][[3]]	# only add for the dlasso part, a 2-length vector
+		}
+	}			
+	
+	for(r in 1:R)
+	{
+		if(count.vec[r]>0)	# coverages can only be found if count.vec[r] is positive
+		{
+			oracle.out.M[r, ] <- oracle.out.M[r, ]/count.vec[r]
+			RB.out.mat.M[r, ] <- RB.out.mat.M[r, ]/count.vec[r]
+			PB.out.mat.M[r, ] <- PB.out.mat.M[r, ]/count.vec[r]
+		}
+		else
+		{
+			oracle.out.M[r, ] <- RB.out.mat.M[r, ]<- PB.out.mat.M[r, ] <- 0
+		}
+	}
+	dlasso.out.M <- matrix(dlasso.out.M/M, nrow = 1, ncol = 2)	# this is divided by M 
 		
-		result.mat <- cbind(k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M)
-		colnames(result.mat) <- c("k.fac", "count.vec", "or.ec", "or.alen", "rbL", "rbU", "rb2", "rb2s", "rb2.alen", "rb2s.alen", "pbL", "pbU", "pb2", "pb2s", "pb2.alen", "pb2s.alen")
-		print(signif(result.mat, 4))
-		colnames(dlasso.out.M) <- c("dlasso.ec", "dlasso.alen")
-		print(dlasso.out.M)
-		C1 <- list(prelim.count, k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M, dlasso.out.M, result.mat)
-		save(C1, file = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
+	result.mat <- cbind(k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M) # putting the main outputs together
+
+	# prints the outputs
+	colnames(result.mat) <- c("k.fac", "count.vec", "or.ec", "or.alen", "rbL", "rbU", "rb2", "rb2s", "rb2.alen", "rb2s.alen", "pbL", "pbU", "pb2", "pb2s", "pb2.alen", "pb2s.alen")
+	print(signif(result.mat, 4))
+	colnames(dlasso.out.M) <- c("dlasso.ec", "dlasso.alen")
+	print(dlasso.out.M)
+
+	# saves all output data which are found after processing the earlier main output in a file prefixed by "short-n-..."
+	C <- list(prelim.count, k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M, dlasso.out.M, result.mat)
+	save(C, file = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
 		
 }
-k0.seq= seq(4, 0.375, by=-.125)
 
+# declaring the k.fac squence of constants
+k0.seq= seq(4, 0.375, by = -0.125)
+
+########################
+# RUNNING n = 300 case #
+# uncomment as per requirement #
 
 #lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
-#cat("####\n####\n")
 #lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
-#cat("####\n####\n")
 #lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
-#cat("####\n####\n")
 #lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
-#cat("####\n####\n")
+
 ########################
 # RUNNING n = 150 case #
+# uncomment as per requirement #
 
 #lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
-#cat("####\n####\n####\n####\n")
 #lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
-#cat("####\n####\n####\n####\n")
 #lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
-#cat("####\n####\n####\n####\n")
-lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
-#cat("####\n####\n####\n####\n")
+#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
