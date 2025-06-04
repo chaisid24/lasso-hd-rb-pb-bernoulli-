@@ -1,25 +1,55 @@
+# description of the code
+# this code deals with the homogenous errors case
+# computes empirical coverages (EC) and average lengths (ALen) of confidence intervals (CIs) for a target parameter
+# the target parameter is a true regression coefficient beta_{j,0}, for j = 1,...,p_0 (= 10)
+# in our simulations we focused on two different targets: beta_{1,0} and beta_{10,0}
+# the EC and ALen are found at various choices of lambda = k*lambda_{CV}
+# where k > 0, is a constant factor that is changed and
+# lambda_{CV} is found by 5 fold CV
+# the EC and ALen are found/plotted over changing values of k
+
+# the code is run by using
+# lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
+# where, n = sample size, p = number of variables, CV.k = 5 (for 5 fold CV)
+# coef.index = 1 (or 10), depending on whether we target beta_{1,0} (or beta_{10,0}) (this can be changed)
+# alpha = 0.1, for 90% nominal coverage levels
+# B.boot = 750 = no. of bootstrap iterations within each Monte Carlo replication
+# err.type = 1 (or 2), for using the N(0,1) errors data set (or using the chi.square(1) errors data set)
+# k.fac = a vector of positive numbers (in decreasing order) for use in place of k in k*lambda_{CV}
+# we used k.fac = k0.seq = seq(4, 0.375, by = -0.125)
+
 rm(list = ls())
 library(parallel)
 library(glmnet)
 library(hdi)
 
+
+
+# this code computes lasso estimates using glmnet package
+# also computes lambda_{CV} for each Monte Carlo data-set
+
 lasso.fn = function(y, X.scale, CV.list) # use this code when cv.lam.search is required 
 {
-	n = nrow(X.scale)
+	# y is a n-vector, a single response vector for the m-th Monte Carlo replication
+	
+	n = nrow(X.scale) # X.scale is the design matrix
 	p = ncol(X.scale)
-	CV.k = CV.list[[1]] # the k-fold parameter #
-    k.fac = CV.list[[2]] # vector of length R # sequence should be in decreasing order
+	
+	CV.k = CV.list[[1]] # the k-fold parameter (in our simulation it is always equal to 5) 
+    	k.fac = CV.list[[2]] # this is the k.fac vector of length R
+
+	# finds the optimal lambda_{CV} value 
+    	CV.lam = cv.glmnet(X.scale, y, nfolds = CV.k, intercept = F, standardize = F)$lambda.min
+    	lam1 = k.fac*CV.lam 									# creates the k.fac*lambda_{CV} vector 
+    	A1 = glmnet(X.scale, y, intercept = F, standardize = F, lambda = lam1) 			# computes Lasso solution at these lambda values
+    	beta.lasso.1 = A1$beta 									# puts these Lasso estimates in a pxR matrix format
     
-    CV.lam = cv.glmnet(X.scale, y, nfolds = CV.k, intercept = F, standardize = F)$lambda.min
-    lam1 = k.fac*CV.lam # R length # 
-    A1 = glmnet(X.scale, y, intercept = F, standardize = F, lambda = lam1)
-    beta.lasso.1 = A1$beta # a pxR matrix
-    
-  	out.all = list(beta.lasso.1, lam1)
-	#out.all = list(beta.lasso.1, lam1, beta.lasso.2, lam2) 
+  	out.all = list(beta.lasso.1, lam1)							# returning the Lasso solutions and lam.1 values
 	return(out.all)
 }
 
+# computes Lasso solutions using glmnet, but at a fixed choices of lambda values
+# used in the bootstrap stage where lambda is provided
 lasso.within.boot <- function(b, y.boot.mat, X, lam.fix)
 {
     y.star = y.boot.mat[ ,b]
@@ -333,25 +363,25 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 		save(C1, file = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
 		
 }
-k0.seq= seq(5,0.375,by=-.125)
+k0.seq= seq(4, 0.375, by=-.125)
 
 
-#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 1, k.fac = k0.seq)
+#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
 #cat("####\n####\n")
-#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 1, k.fac = k0.seq)
+#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
 #cat("####\n####\n")
-#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
+#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
 #cat("####\n####\n")
-#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
+#lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
 #cat("####\n####\n")
 ########################
 # RUNNING n = 150 case #
 
-#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 1, k.fac = k0.seq)
+#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
 #cat("####\n####\n####\n####\n")
-#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 1, k.fac = k0.seq)
+#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 1, k.fac = k0.seq)
 #cat("####\n####\n####\n####\n")
-#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
+#lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
 #cat("####\n####\n####\n####\n")
-lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
+lasso.all(n = 150, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
 #cat("####\n####\n####\n####\n")
