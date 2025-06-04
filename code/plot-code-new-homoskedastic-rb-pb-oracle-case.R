@@ -86,4 +86,8 @@ plot.code <- function(n, p, coef.index, err.type)
 
    dev.off()
 }
-plot.code(n = 150, p = 500, coef.index = 10, err.type = 2)
+
+# change the n, p, coef.index and err.type values as per requirement
+# the output (.Rdata) files need to be in the same directory
+
+#plot.code(n = 150, p = 500, coef.index = 10, err.type = 2)
