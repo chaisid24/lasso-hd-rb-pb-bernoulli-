@@ -21,7 +21,7 @@
 rm(list = ls())
 library(parallel)
 library(glmnet)
-library(hdi)
+
 
 
 # this code computes lasso estimates using glmnet package
@@ -227,13 +227,6 @@ pbci.vareq.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info
     	return(pb.ci.out.nz.index)
 }
 
-# this code finds Debiased Lasso based CIs for a given (y,X) utiliing the A$Z information stored earlier in the data generation phase
-dblasso.ci = function(y, X, coef.index, alpha, A.Z)
-{
-    	A = lasso.proj(X, y, Z = A.Z, suppress.grouptesting = TRUE)
-    	u1 = confint(A, level = 1-alpha)
-    	return(as.vector(u1[coef.index, ]))
-}
 
 # code that handles a single Monte-Carlo iteration (m-th iteration)
 data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.Z)
@@ -259,13 +252,7 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
 	inz.theta = (1:R)[theta.vec!=0] 		
 	theta.0 = sum(d.vec*beta.0) # true parameter 
 
-	## Debiased Lasso based CIs ##
-	# The Debiased Lasso based CI's are always usable 
-	dbl.ci = dblasso.ci(y, X, coef.index, alpha, A.Z)
-    	dbl.logic = ifelse(dbl.ci[1]<= theta.0 & theta.0 <= dbl.ci[2], 1, 0)
-	dbl.len = abs(dbl.ci[2] - dbl.ci[1])
-	dlasso.out.m <- c(dbl.logic, dbl.len) 
-	
+		
 
 	## Oracle (Normal), RB and PB based CIs ##
 	# simulation proceeds if among all R choices of lambda = k.fac*lambda_{CV} there is at least one r, which gave theta.hat[r] non-zero
@@ -313,12 +300,12 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
 
 		# the first element in this list c(1,m) is used denote that at least one theta.vec[r], for r=1,...,R, is non-zero
 		# essentially in the m-th Monte-Carlo iteration, we have atleast one choice of lambda[r], which gave a non-zero estimate of the target parameter
-    		return(list(c(1,m), inz.theta, oracle.out.m, RB.out.mat.m, PB.out.mat.m, dlasso.out.m))
+    	return(list(c(1,m), inz.theta, oracle.out.m, RB.out.mat.m, PB.out.mat.m))
     	}
     	else 
     	{
 		# c(2,m) is used to denote that in the m-th Monte-Carlo iteration, all theta.vec[r] = 0, for r = 1,...,R.
-    		return(list(c(2,m), inz.theta, dlasso.out.m)) # only relevant output is the Debiased Lasso based output
+    	return(list(c(2,m), inz.theta)) 
     	}
 	# processing of m-th Monte Carlo dataset finishes #
 }
@@ -342,7 +329,7 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 	y.mat = yx.list[[1]][err.type, , ]	# loads n x M response matrix for homogenous-case, depending on err.type (1 or 2) 
 	X.fix = yx.list[[2]]			# design matrix
 	beta.0 = yx.list[[3]]			# true beta.0 parameter
-	A.Z = yx.list[[5]]			# nodewise Lasso used for Debiased Lasso related computations
+	
 	M = ncol(y.mat)				# M = 500 for our simulation
 	R = length(k.fac)			# length of k.fac vector
 
@@ -361,8 +348,7 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 	
 	oracle.out.M <- matrix(0, nrow = R, ncol = 2)
 	RB.out.mat.M <- PB.out.mat.M <- matrix(0, nrow = R, ncol = 6)
-	dlasso.out.M <- rep(0, 2)
-
+	
 	# this part is used to count M.hat[r] values (see above)
 	for(m in 1:M)
 	{
@@ -374,12 +360,8 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 			oracle.out.M <- oracle.out.M + B[[m]][[3]]	# keep adding to the oracle.out.M matrix another Rx2 matrix
 			RB.out.mat.M <- RB.out.mat.M + B[[m]][[4]]	# same as above, add a Rx6 matrix
 			PB.out.mat.M <- PB.out.mat.M + B[[m]][[5]]	# ...
-			dlasso.out.M <- dlasso.out.M + B[[m]][[6]]	# keep adding a 2-length vector
 		}
-		else
-		{
-			dlasso.out.M <- dlasso.out.M + B[[m]][[3]]	# only add for the dlasso part, a 2-length vector
-		}
+	
 	}			
 	
 	for(r in 1:R)
@@ -395,18 +377,15 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 			oracle.out.M[r, ] <- RB.out.mat.M[r, ]<- PB.out.mat.M[r, ] <- 0
 		}
 	}
-	dlasso.out.M <- matrix(dlasso.out.M/M, nrow = 1, ncol = 2)	# this is divided by M 
 		
 	result.mat <- cbind(k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M) # putting the main outputs together
 
 	# prints the outputs
 	colnames(result.mat) <- c("k.fac", "count.vec", "or.ec", "or.alen", "rbL", "rbU", "rb2", "rb2s", "rb2.alen", "rb2s.alen", "pbL", "pbU", "pb2", "pb2s", "pb2.alen", "pb2s.alen")
 	print(signif(result.mat, 4))
-	colnames(dlasso.out.M) <- c("dlasso.ec", "dlasso.alen")
-	print(dlasso.out.M)
-
+	
 	# saves all output data which are found after processing the earlier main output in a file prefixed by "short-n-..."
-	C <- list(prelim.count, k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M, dlasso.out.M, result.mat)
+	C <- list(prelim.count, k.fac, count.vec, oracle.out.M, RB.out.mat.M, PB.out.mat.M, result.mat)
 	save(C, file = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et-",err.type,".Rdata", sep = ""))
 		
 }
