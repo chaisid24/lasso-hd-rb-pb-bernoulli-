@@ -27,7 +27,6 @@
 rm(list = ls())
 library(parallel)
 library(mvtnorm)
-library(hdi)
 
 # generates error variables
 error.fn = function(i, n, err.type)
@@ -118,18 +117,7 @@ yx.gen = function(n, beta.0.true, p0, rho, M)
 	yx.list[[2]] <- X.fix 					# design matrix
 	yx.list[[3]] <- beta.0.true 				# true regression coefficient of length p
 	yx.list[[4]] <- c(min(irrep.vec), max(irrep.vec))	# irrepresentible condition value is stored 
-	
-	
-	# finding Z - see hdi manual # used for Debiased Lasso computations 
-	# this does not require use of y values
-	# each column of X is predicted by Lasso using other columns of X 
-	# the resulting output is saved, for future use in Monte Carlo simulation stage
-	# ncores value can be changed
-	
-	A = lasso.proj(X.fix, y.array[1, ,1], parallel = TRUE, ncores = 12, return.Z = TRUE, suppress.grouptesting = TRUE)
-	yx.list[[5]] = A$Z					# storing this object in yx.list[[5]]
-	
-	yx.list[[6]] = y.array.het 				# heterogenous errors y data
+	yx.list[[5]] = y.array.het 				# heterogenous errors y data
 
 	# storing yx.list in an appropriately named .Rdata file
 	my.file.name = paste("yx-all-n-",n,"-p-",p,"-true-beta-",beta.0.true[1],".Rdata", sep = "")
