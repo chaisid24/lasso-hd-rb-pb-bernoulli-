@@ -6,7 +6,6 @@
 
 rm(list = ls())
 library(parallel)
-library(hdi)
 library(glmnet)
 
 lasso.fn = function(y, X, CV.info)  
@@ -122,13 +121,6 @@ pbci.fn = function(nz.index, y, X, coef.index, B, alpha, beta.0, init.info.list)
     	return(pb.ci.out.nz.index)
 }
 
-dblasso.ci = function(y, X, coef.index, alpha, A.Z)
-{
-    	A = lasso.proj(X, y, Z = A.Z, suppress.grouptesting = TRUE)
-    	u1 = confint(A, level = 1-alpha)
-    	return(as.vector(u1[coef.index, ]))
-}
-
 data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.Z)
 {
 	y = y.mat[ ,m]
@@ -149,13 +141,6 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
 	inz.theta = (1:R)[theta.vec!=0] # indices with non zero theta.vec
 	theta.0 = sum(d.vec*beta.0) # true parameter 
 	   	
-
-	
-	# The Debiased Lasso based CI's are always usable # - Debiased Lasso CI - #
-	dbl.ci = dblasso.ci(y, X, coef.index, alpha, A.Z)
-        dbl.logic = ifelse(dbl.ci[1]<= theta.0 & theta.0 <= dbl.ci[2], 1, 0)
-	dbl.len = abs(dbl.ci[2] - dbl.ci[1])
-	dlasso.out.m <- c(dbl.logic, dbl.len) 
 		
 	if(length(inz.theta)>0)
 	{
@@ -188,11 +173,11 @@ data.set.m = function(m, y.mat, X, CV.k, coef.index, B, alpha, beta.0, k.fac, A.
     		# PB #
     		PB.out.mat.m[inz.theta, ] <- t(sapply(inz.theta, pbci.fn, y, X, coef.index, B, alpha, beta.0, init.info.list)) # length(inz.theta) x 6 matrix 
     		
-    		return(list(c(1, m), inz.theta, oracle.out.m, PB.out.mat.m, dlasso.out.m))	
+    		return(list(c(1, m), inz.theta, oracle.out.m, PB.out.mat.m))	
 	}
 	else # dlasso.out.m is the only output along with inz.theta, which should be a NULL 
 	{
-		return(list(c(2, m), inz.theta, dlasso.out.m))
+		return(list(c(2, m), inz.theta))
 	}	
 }
 
@@ -200,7 +185,7 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 {
 	my.file.name = paste("yx-all-n-",n,"-p-",p,"-true-beta-5.Rdata", sep = "")
 	load(my.file.name)	
-	y.mat = yx.list[[6]][err.type, , ] # loads n x M response matrix for het-case 
+	y.mat = yx.list[[5]][err.type, , ] # loads n x M response matrix for het-case 
 	X.fix = yx.list[[2]]
 	beta.0 = yx.list[[3]]
 	A.Z = yx.list[[5]]
@@ -217,7 +202,7 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 	PB.out.mat.M <- matrix(0, nrow = R, ncol = 6)
 	
 	#colnames(PB.out.mat.M) <- c("ec.L", "ec.U", "ec.pb2", "ec.pb2s", "alen.pb2", "alen.pb2s")
-	dlasso.out.M <- rep(0, 2)
+	
 	for(m in 1:M)
 	{
 		prelim.count[m, ] <- B[[m]][[1]]
@@ -227,11 +212,6 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 			count.vec[a.m] <- count.vec[a.m] + 1
 			oracle.out.M <- oracle.out.M + B[[m]][[3]]
 			PB.out.mat.M <- PB.out.mat.M + B[[m]][[4]]
-			dlasso.out.M <- dlasso.out.M + B[[m]][[5]]
-		}
-		else
-		{
-			dlasso.out.M <- dlasso.out.M + B[[m]][[3]]
 		}
 	}			
 	for(r in 1:R)
@@ -239,12 +219,10 @@ lasso.all <- function(n, p, CV.k, coef.index, alpha, B.boot, err.type, k.fac)
 		oracle.out.M[r, ] <- oracle.out.M[r, ]/count.vec[r]
 		PB.out.mat.M[r, ] <- PB.out.mat.M[r, ]/count.vec[r]
 	}
-	dlasso.out.M <- dlasso.out.M/M 
 		
 	print(signif(cbind(k.fac, count.vec, oracle.out.M, PB.out.mat.M),4))
-	print(dlasso.out.M)
 	
-	C1 <- list(prelim.count, k.fac, count.vec, oracle.out.M, PB.out.mat.M, dlasso.out.M)
+	C1 <- list(prelim.count, k.fac, count.vec, oracle.out.M, PB.out.mat.M)
 	save(C1, file = paste("short-n-",n,"-p-",p,"-coef-",coef.index,"-et2.Rdata", sep = "")) # see file name related comment below 
 		
 }
@@ -256,7 +234,7 @@ k0.seq= seq(4, 0.375, by= -0.125)
 # the file name used for the final storage of data needs to changed with suffix -et1.Rdata (see above)
 
 # uncomment as per requirement 
-# lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
-# lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 700, err.type = 2, k.fac = k0.seq)
+# lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 1, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
+# lasso.all(n = 300, p = 500, CV.k = 5, coef.index = 10, alpha = 0.1, B.boot = 750, err.type = 2, k.fac = k0.seq)
 
 # for n = 150, there can be difficulties in running this code because of the higher noise level. 
